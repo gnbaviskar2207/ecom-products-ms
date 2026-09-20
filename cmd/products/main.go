@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
+	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
 )
 
 func main() {
@@ -22,8 +23,9 @@ func main() {
 func run() error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
-	configPath := flag.String("config", "", "optional YAML configuration file")
+	configPath := flag.String("config", "./configs/dev/config.yaml", "optional YAML configuration file")
 	flag.Parse()
+	logger.Info("config path", "configPath", *configPath)
 	cfg, err := config.Load(*configPath, logger)
 	if err != nil {
 		return err
@@ -37,7 +39,16 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	productService := services.ProductServiceNew(mongoRepo)
+	logger.Info("product service object", "service", productService)
 
-	logger.Info("mongo object", "mongo_obj", mongoRepo)
+	// Add shutdown logic
+	go func() {
+		<-rootCtx.Done()
+		logger.Info("shutting down product service")
+		mongoRepo.Close(rootCtx)
+		cancel()
+	}()
+
 	return nil
 }
