@@ -11,7 +11,7 @@ type ProductService struct {
 	repo ports.ProductRepository
 }
 
-func ProductServiceNew(repo ports.ProductRepository) ports.ProductService {
+func New(repo ports.ProductRepository) ports.ProductService {
 	return &ProductService{repo: repo}
 }
 

@@ -4,13 +4,18 @@ import (
 	"context"
 	"flag"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
+	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
+	grpcApi "github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/grpc"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -31,24 +36,69 @@ func run() error {
 		return err
 	}
 
-	rootCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-	connectCtx, cancel := context.WithTimeout(rootCtx, cfg.Mongo.Timeout)
-	defer cancel()
+	rootCtx, rootCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+
+	connectCtx, connectCancel := context.WithTimeout(rootCtx, cfg.Mongo.Timeout)
+	defer connectCancel()
 	mongoRepo, err := mongodb.New(connectCtx, cfg.Mongo.URL, cfg.Mongo.Database, cfg.Mongo.Collection, logger)
 	if err != nil {
 		return err
 	}
-	productService := services.ProductServiceNew(mongoRepo)
-	logger.Info("product service object", "service", productService)
+	productService := services.New(mongoRepo)
+	productGRPCAdapter := grpcApi.New(logger, productService)
 
-	// Add shutdown logic
+	// todo: start server and listen to grpc
+	listener, err := net.Listen("tcp", cfg.GRPC.Address)
+	if err != nil {
+		return err
+	}
+	grpcServer := grpc.NewServer()
+	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
+	reflection.Register(grpcServer)
+	errCh := make(chan error, 1)
 	go func() {
-		<-rootCtx.Done()
-		logger.Info("shutting down product service")
-		mongoRepo.Close(rootCtx)
-		cancel()
+		errCh <- grpcServer.Serve(listener)
 	}()
 
+	logger.Info("product service is running on", "address", cfg.GRPC.Address)
+	select {
+	case <-rootCtx.Done():
+		logger.Info("shutting down the product server(signal received)")
+
+	case err := <-errCh:
+		logger.Error("grpc server stopped unexpectedly", "error", err)
+	}
+
+	rootCtxCancel()
+
+	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), cfg.GRPC.ShutdownTimeout)
+	defer shutDownCancel()
+
+	stoppedCh := make(chan struct{})
+
+	go func() {
+		// allow the inflight/pending requests to complete
+		grpcServer.GracefulStop()
+		close(stoppedCh)
+	}()
+
+	select {
+	case <-shutDownContext.Done():
+		logger.Error("graceful shutdown timed out, forcing ")
+		grpcServer.Stop()
+	case <-stoppedCh:
+	}
+	logger.Info("grpc server is stopped")
+	logger.Info("shutting down mongo db")
+	mongodbCloseCtx, mongodbCloseCancel := context.WithTimeout(context.Background(), cfg.Mongo.Timeout)
+	defer mongodbCloseCancel()
+	if err = mongoRepo.Close(mongodbCloseCtx); err != nil {
+		logger.Error("mongodb shutdown failed",
+			"error", err,
+		)
+	} else {
+		logger.Info("mongodb gracefull shutdown complete")
+	}
+	logger.Info("graceful shutdown of product service is complete")
 	return nil
 }
