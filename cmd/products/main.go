@@ -47,14 +47,16 @@ func run() error {
 	productService := services.New(mongoRepo)
 	productGRPCAdapter := grpcApi.New(logger, productService)
 
-	// todo: start server and listen to grpc
 	listener, err := net.Listen("tcp", cfg.GRPC.Address)
 	if err != nil {
 		return err
 	}
 	grpcServer := grpc.NewServer()
 	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
-	reflection.Register(grpcServer)
+	if cfg.Environment == "development" {
+		reflection.Register(grpcServer)
+		logger.Info("grpc reflection is enabled")
+	}
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- grpcServer.Serve(listener)
