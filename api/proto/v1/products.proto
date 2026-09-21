@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package proto.v1;
+
+option go_package = "github.com/gnbaviskar2207/ecom-products-ms/gen/products;productsV1";
+
+// ProductService is the service for product-related operations
+service ProductService {
+  // FindOneByPid finds a product by its product id
+  rpc FindOneByPid(FindOneByPidRequest) returns (Product);
+}
+
+// FindOneByPidRequest represents a request to find a product by its product id
+message FindOneByPidRequest {
+  string pid = 1;
+}
+
+// Product represents a product in the catalogue
+message Product {
+  string          pid                    = 1;
+  string          name                   = 2;
+  string          sku                    = 3;
+  string          image                  = 4;
+  string          weight                 = 5;
+  string          type                   = 6;
+  string          category_name          = 7;
+  string          sell_price             = 8;
+  string          remark                 = 9;
+  bool            is_free_shipping       = 10;
+  bool            is_video               = 11;
+  int64           sale_status            = 12;
+  int64           listed_num             = 13;
+  string          supplier_name          = 14;
+  string          supplier_id            = 15;
+  string          category_id            = 16;
+  string          source_from            = 17;
+  repeated string shipping_country_codes = 18;
+  string          three_category_name    = 19;
+  string          two_category_id        = 20;
+  string          two_category_name      = 21;
+  string          one_category_id        = 22;
+  string          one_category_name      = 23;
+  int64           customization_version  = 24;
+  bool            is_test_product        = 25;
+}

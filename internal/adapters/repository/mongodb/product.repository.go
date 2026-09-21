@@ -79,6 +79,14 @@ func (r *MongoProductRepository) ensureIndexes(ctx context.Context) error {
 	return nil
 }
 
+func (m *MongoProductRepository) Close(ctx context.Context) error {
+	return m.client.Disconnect(ctx)
+}
+
+func (m *MongoProductRepository) Ping(ctx context.Context) error {
+	return m.client.Ping(ctx, nil)
+}
+
 func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (domain.Product, error) {
 	var product domain.Product
 	result := m.collection.FindOne(ctx, bson.M{"payload.pid": pid})
@@ -89,12 +97,4 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 		return product, err
 	}
 	return product, nil
-}
-
-func (m *MongoProductRepository) Close(ctx context.Context) error {
-	return m.client.Disconnect(ctx)
-}
-
-func (m *MongoProductRepository) Ping(ctx context.Context) error {
-	return m.client.Ping(ctx, nil)
 }

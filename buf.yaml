@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: ./api/proto/v1
+lint:
+  use:
+    - STANDARD
+  except:
+    # The repository contract intentionally requires api/proto/v1.
+    - PACKAGE_DIRECTORY_MATCH
+
+breaking:
+  use:
+    - FILE
