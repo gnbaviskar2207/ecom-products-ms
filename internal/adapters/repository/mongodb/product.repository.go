@@ -44,7 +44,6 @@ func New(ctx context.Context, url, database, collection string, logger *slog.Log
 
 func (r *MongoProductRepository) ensureIndexes(ctx context.Context) error {
 	indexes := r.collection.Indexes()
-
 	cursor, err := indexes.List(ctx)
 	if err != nil {
 		return err
@@ -88,13 +87,15 @@ func (m *MongoProductRepository) Ping(ctx context.Context) error {
 }
 
 func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (domain.Product, error) {
-	var product domain.Product
-	result := m.collection.FindOne(ctx, bson.M{"payload.pid": pid})
-	if result.Err() != nil {
-		return product, result.Err()
+	var err error
+	var result struct {
+		Payload domain.Product `bson:"payload"`
 	}
-	if err := result.Decode(&product); err != nil {
-		return product, err
+	cursor := m.collection.FindOne(ctx, bson.M{"payload.pid": pid}, options.FindOne().SetProjection(bson.D{{Key: "payload", Value: 1}}))
+	if err = cursor.Decode(&result); err != nil {
+		m.logger.ErrorContext(ctx, "product retrieval failed", slog.String("method", "repository.FindOneByPid"), "error", err.Error(), slog.String("pid", pid))
+		return result.Payload, err
 	}
-	return product, nil
+	m.logger.DebugContext(ctx, "product retrieved", slog.String("method", "repository.FindOneByPid"), slog.String("pid", pid))
+	return result.Payload, nil
 }

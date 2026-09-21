@@ -14,6 +14,7 @@ import (
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
+	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform/generated"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -44,8 +45,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	transform := &generated.ConverterImpl{}
 	productService := services.New(mongoRepo)
-	productGRPCAdapter := grpcApi.New(logger, productService)
+	productGRPCAdapter := grpcApi.New(logger, productService, transform)
 
 	listener, err := net.Listen("tcp", cfg.GRPC.Address)
 	if err != nil {

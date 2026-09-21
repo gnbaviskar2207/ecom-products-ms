@@ -1,7 +1,7 @@
 package domain
 
 type Product struct {
-	Pid string `bson:"id"`
+	Pid string `bson:"pid"`
 	// ProductName          []string `bson:"productName"`
 	ProductNameEn string `bson:"productNameEn"`
 	ProductSku    string `bson:"productSku"`

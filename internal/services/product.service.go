@@ -2,13 +2,15 @@ package services
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/ports"
 )
 
 type ProductService struct {
-	repo ports.ProductRepository
+	logger *slog.Logger
+	repo   ports.ProductRepository
 }
 
 func New(repo ports.ProductRepository) ports.ProductService {
