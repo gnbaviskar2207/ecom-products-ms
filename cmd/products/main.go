@@ -46,7 +46,7 @@ func run() error {
 		return err
 	}
 	transform := &generated.ConverterImpl{}
-	productService := services.New(mongoRepo)
+	productService := services.New(mongoRepo, logger)
 	productGRPCAdapter := grpcApi.New(logger, productService, transform)
 
 	listener, err := net.Listen("tcp", cfg.GRPC.Address)

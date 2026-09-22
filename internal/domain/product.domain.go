@@ -32,3 +32,9 @@ type Product struct {
 	IsTestProduct        bool     `json:"is_test_product" bson:"isTestProduct"`
 	// CreateTime           int64    `bson:"createTime"`
 }
+
+type PaginatedProducts struct {
+	Products   []Product `json:"products"`
+	NextCursor string    `json:"next_cursor"`
+	HasMore    bool      `json:"has_more"`
+}

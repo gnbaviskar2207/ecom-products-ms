@@ -99,3 +99,39 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 	m.logger.DebugContext(ctx, "product retrieved", slog.String("method", "repository.FindOneByPid"), slog.String("pid", pid))
 	return result.Payload, nil
 }
+
+func (m *MongoProductRepository) ListProducts(ctx context.Context, req *domain.PaginatedProducts) (*domain.PaginatedProducts, error) {
+	filter := bson.M{}
+
+	if req != nil && req.NextCursor != "" {
+		filter["payload.pid"] = bson.M{"$gt": req.NextCursor}
+	}
+
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: "payload.pid", Value: 1}}).
+		SetLimit(10).
+		SetProjection(bson.D{{Key: "payload", Value: 1}})
+
+	cursor, err := m.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var products []domain.Product
+	for cursor.Next(ctx) {
+		var result struct {
+			Payload domain.Product `bson:"payload"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			return nil, err
+		}
+		products = append(products, result.Payload)
+	}
+
+	return &domain.PaginatedProducts{
+		Products:   products,
+		NextCursor: products[len(products)-1].Pid,
+		HasMore:    len(products) == 10,
+	}, nil
+}
