@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
+	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/ports"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform"
 )
@@ -28,4 +29,20 @@ func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.F
 		return nil, err
 	}
 	return p.transform.ToProductPb(product), nil
+}
+
+func (p *ProductAdapter) ListProducts(ctx context.Context, req *productsV1.ListProductsRequest) (*productsV1.ListProductsResponse, error) {
+	products, err := p.productService.ListProducts(ctx, &dto.ListProductsRequestDTO{
+		NextCursor: req.NextCursor,
+		Limit:      req.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &productsV1.ListProductsResponse{
+		NextCursor: products.NextCursor,
+		HasMore:    products.HasMore,
+		Products:   p.transform.ToProductsPb(products.Products),
+	}, nil
+	// return p.transform.ToProductsResponsePb(products), nil
 }

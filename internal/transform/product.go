@@ -33,5 +33,7 @@ type Converter interface {
 	// goverter:map OneCategoryName OneCategoryName
 	// goverter:map CustomizationVersion CustomizationVersion
 	// goverter:map IsTestProduct IsTestProduct
-	ToProductPb(p domain.Product) *productsV1.Product
+	ToProductPb(p *domain.Product) *productsV1.Product
+
+	ToProductsPb(products []*domain.Product) []*productsV1.Product
 }

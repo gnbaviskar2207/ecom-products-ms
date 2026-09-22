@@ -34,7 +34,7 @@ type Product struct {
 }
 
 type PaginatedProducts struct {
-	Products   []Product `json:"products"`
-	NextCursor string    `json:"next_cursor"`
-	HasMore    bool      `json:"has_more"`
+	Products   []*Product `json:"products"`
+	NextCursor string     `json:"next_cursor"`
+	HasMore    bool       `json:"has_more"`
 }

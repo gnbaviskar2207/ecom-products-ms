@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
+	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -86,7 +87,7 @@ func (m *MongoProductRepository) Ping(ctx context.Context) error {
 	return m.client.Ping(ctx, nil)
 }
 
-func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (domain.Product, error) {
+func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (*domain.Product, error) {
 	var err error
 	var result struct {
 		Payload domain.Product `bson:"payload"`
@@ -94,13 +95,13 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 	cursor := m.collection.FindOne(ctx, bson.M{"payload.pid": pid}, options.FindOne().SetProjection(bson.D{{Key: "payload", Value: 1}}))
 	if err = cursor.Decode(&result); err != nil {
 		m.logger.ErrorContext(ctx, "product retrieval failed", slog.String("method", "repository.FindOneByPid"), "error", err.Error(), slog.String("pid", pid))
-		return result.Payload, err
+		return nil, err
 	}
 	m.logger.DebugContext(ctx, "product retrieved", slog.String("method", "repository.FindOneByPid"), slog.String("pid", pid))
-	return result.Payload, nil
+	return &result.Payload, nil
 }
 
-func (m *MongoProductRepository) ListProducts(ctx context.Context, req *domain.PaginatedProducts) (*domain.PaginatedProducts, error) {
+func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedProducts, error) {
 	filter := bson.M{}
 
 	if req != nil && req.NextCursor != "" {
@@ -118,7 +119,7 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *domain.P
 	}
 	defer cursor.Close(ctx)
 
-	var products []domain.Product
+	var products []*domain.Product
 	for cursor.Next(ctx) {
 		var result struct {
 			Payload domain.Product `bson:"payload"`
@@ -126,7 +127,7 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *domain.P
 		if err := cursor.Decode(&result); err != nil {
 			return nil, err
 		}
-		products = append(products, result.Payload)
+		products = append(products, &result.Payload)
 	}
 
 	return &domain.PaginatedProducts{

@@ -10,51 +10,65 @@ import (
 
 type ConverterImpl struct{}
 
-func (c *ConverterImpl) ToProductPb(source domain.Product) *products.Product {
-	var productsV1Product products.Product
-	productsV1Product.Pid = source.Pid
-	productsV1Product.Name = source.ProductNameEn
-	productsV1Product.Sku = source.ProductSku
-	productsV1Product.Image = source.ProductImage
-	productsV1Product.Weight = source.ProductWeight
-	productsV1Product.Type = source.ProductType
-	productsV1Product.CategoryName = source.CategoryName
-	productsV1Product.SellPrice = source.SellPrice
-	productsV1Product.Remark = source.Remark
-	productsV1Product.IsFreeShipping = source.IsFreeShipping
-	if source.IsVideo != nil {
-		productsV1Product.IsVideo = *source.IsVideo
+func (c *ConverterImpl) ToProductPb(source *domain.Product) *products.Product {
+	var pProductsV1Product *products.Product
+	if source != nil {
+		var productsV1Product products.Product
+		productsV1Product.Pid = (*source).Pid
+		productsV1Product.Name = (*source).ProductNameEn
+		productsV1Product.Sku = (*source).ProductSku
+		productsV1Product.Image = (*source).ProductImage
+		productsV1Product.Weight = (*source).ProductWeight
+		productsV1Product.Type = (*source).ProductType
+		productsV1Product.CategoryName = (*source).CategoryName
+		productsV1Product.SellPrice = (*source).SellPrice
+		productsV1Product.Remark = (*source).Remark
+		productsV1Product.IsFreeShipping = (*source).IsFreeShipping
+		if (*source).IsVideo != nil {
+			productsV1Product.IsVideo = *(*source).IsVideo
+		}
+		productsV1Product.SaleStatus = (*source).SaleStatus
+		productsV1Product.ListedNum = (*source).ListedNum
+		if (*source).SupplierName != nil {
+			productsV1Product.SupplierName = *(*source).SupplierName
+		}
+		productsV1Product.SupplierId = (*source).SupplierId
+		productsV1Product.CategoryId = (*source).CategoryId
+		productsV1Product.SourceFrom = (*source).SourceFrom
+		if (*source).ShippingCountryCodes != nil {
+			productsV1Product.ShippingCountryCodes = make([]string, len((*source).ShippingCountryCodes))
+			for i := 0; i < len((*source).ShippingCountryCodes); i++ {
+				productsV1Product.ShippingCountryCodes[i] = (*source).ShippingCountryCodes[i]
+			}
+		}
+		if (*source).ThreeCategoryName != nil {
+			productsV1Product.ThreeCategoryName = *(*source).ThreeCategoryName
+		}
+		if (*source).TwoCategoryId != nil {
+			productsV1Product.TwoCategoryId = *(*source).TwoCategoryId
+		}
+		if (*source).TwoCategoryName != nil {
+			productsV1Product.TwoCategoryName = *(*source).TwoCategoryName
+		}
+		if (*source).OneCategoryId != nil {
+			productsV1Product.OneCategoryId = *(*source).OneCategoryId
+		}
+		if (*source).OneCategoryName != nil {
+			productsV1Product.OneCategoryName = *(*source).OneCategoryName
+		}
+		productsV1Product.CustomizationVersion = (*source).CustomizationVersion
+		productsV1Product.IsTestProduct = (*source).IsTestProduct
+		pProductsV1Product = &productsV1Product
 	}
-	productsV1Product.SaleStatus = source.SaleStatus
-	productsV1Product.ListedNum = source.ListedNum
-	if source.SupplierName != nil {
-		productsV1Product.SupplierName = *source.SupplierName
-	}
-	productsV1Product.SupplierId = source.SupplierId
-	productsV1Product.CategoryId = source.CategoryId
-	productsV1Product.SourceFrom = source.SourceFrom
-	if source.ShippingCountryCodes != nil {
-		productsV1Product.ShippingCountryCodes = make([]string, len(source.ShippingCountryCodes))
-		for i := 0; i < len(source.ShippingCountryCodes); i++ {
-			productsV1Product.ShippingCountryCodes[i] = source.ShippingCountryCodes[i]
+	return pProductsV1Product
+}
+func (c *ConverterImpl) ToProductsPb(source []*domain.Product) []*products.Product {
+	var pProductsV1ProductList []*products.Product
+	if source != nil {
+		pProductsV1ProductList = make([]*products.Product, len(source))
+		for i := 0; i < len(source); i++ {
+			pProductsV1ProductList[i] = c.ToProductPb(source[i])
 		}
 	}
-	if source.ThreeCategoryName != nil {
-		productsV1Product.ThreeCategoryName = *source.ThreeCategoryName
-	}
-	if source.TwoCategoryId != nil {
-		productsV1Product.TwoCategoryId = *source.TwoCategoryId
-	}
-	if source.TwoCategoryName != nil {
-		productsV1Product.TwoCategoryName = *source.TwoCategoryName
-	}
-	if source.OneCategoryId != nil {
-		productsV1Product.OneCategoryId = *source.OneCategoryId
-	}
-	if source.OneCategoryName != nil {
-		productsV1Product.OneCategoryName = *source.OneCategoryName
-	}
-	productsV1Product.CustomizationVersion = source.CustomizationVersion
-	productsV1Product.IsTestProduct = source.IsTestProduct
-	return &productsV1Product
+	return pProductsV1ProductList
 }
