@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
+	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -44,7 +45,6 @@ func New(ctx context.Context, url, database, collection string, logger *slog.Log
 
 func (r *MongoProductRepository) ensureIndexes(ctx context.Context) error {
 	indexes := r.collection.Indexes()
-
 	cursor, err := indexes.List(ctx)
 	if err != nil {
 		return err
@@ -87,14 +87,59 @@ func (m *MongoProductRepository) Ping(ctx context.Context) error {
 	return m.client.Ping(ctx, nil)
 }
 
-func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (domain.Product, error) {
-	var product domain.Product
-	result := m.collection.FindOne(ctx, bson.M{"payload.pid": pid})
-	if result.Err() != nil {
-		return product, result.Err()
+func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (*domain.Product, error) {
+	var err error
+	var result struct {
+		Payload domain.Product `bson:"payload"`
 	}
-	if err := result.Decode(&product); err != nil {
-		return product, err
+	cursor := m.collection.FindOne(ctx, bson.M{"payload.pid": pid}, options.FindOne().SetProjection(bson.D{{Key: "payload", Value: 1}}))
+	if err = cursor.Decode(&result); err != nil {
+		m.logger.ErrorContext(ctx, "product retrieval failed", slog.String("method", "repository.FindOneByPid"), "error", err.Error(), slog.String("pid", pid))
+		return nil, err
 	}
-	return product, nil
+	m.logger.DebugContext(ctx, "product retrieved", slog.String("method", "repository.FindOneByPid"), slog.String("pid", pid))
+	return &result.Payload, nil
+}
+
+func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedProducts, error) {
+	// TODO: filter yet not working as per cursor id
+	// TODO: cursor id to be encoded in base64 string
+	// TODO: make cursor id as secret
+	// TODO: limit logic not yet working
+	// TODO: pagination to be generic, change in query does not need to have same code again
+	//
+
+	filter := bson.M{}
+
+	if req != nil && req.NextCursor != "" {
+		filter["payload.pid"] = bson.M{"$gt": req.NextCursor}
+	}
+
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: "payload.pid", Value: 1}}).
+		SetLimit(10).
+		SetProjection(bson.D{{Key: "payload", Value: 1}})
+
+	cursor, err := m.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var products []*domain.Product
+	for cursor.Next(ctx) {
+		var result struct {
+			Payload domain.Product `bson:"payload"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			return nil, err
+		}
+		products = append(products, &result.Payload)
+	}
+
+	return &domain.PaginatedProducts{
+		Products:   products,
+		NextCursor: products[len(products)-1].Pid,
+		HasMore:    len(products) == 10,
+	}, nil
 }
