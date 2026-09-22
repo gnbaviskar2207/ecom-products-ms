@@ -102,6 +102,13 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 }
 
 func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedProducts, error) {
+	// TODO: filter yet not working as per cursor id
+	// TODO: cursor id to be encoded in base64 string
+	// TODO: make cursor id as secret
+	// TODO: limit logic not yet working
+	// TODO: pagination to be generic, change in query does not need to have same code again
+	//
+
 	filter := bson.M{}
 
 	if req != nil && req.NextCursor != "" {
