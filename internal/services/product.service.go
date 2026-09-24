@@ -22,7 +22,7 @@ func (p *ProductService) FindOneByPid(ctx context.Context, pid string) (*domain.
 	return p.repo.FindOneByPid(ctx, pid)
 }
 
-func (p *ProductService) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedProducts, error) {
+func (p *ProductService) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedResult[*domain.Product], error) {
 	products, err := p.repo.ListProducts(ctx, req)
 	if err != nil {
 		p.logger.ErrorContext(ctx, "failed to get paginated products", slog.String("error", err.Error()))

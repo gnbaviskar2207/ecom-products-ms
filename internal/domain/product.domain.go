@@ -33,8 +33,8 @@ type Product struct {
 	// CreateTime           int64    `bson:"createTime"`
 }
 
-type PaginatedProducts struct {
-	Products   []*Product `json:"products"`
-	NextCursor string     `json:"next_cursor"`
-	HasMore    bool       `json:"has_more"`
+type PaginatedResult[T any] struct {
+	Data       []T    `json:"data"`
+	NextCursor string `json:"next_cursor"`
+	HasMore    bool   `json:"has_more"`
 }

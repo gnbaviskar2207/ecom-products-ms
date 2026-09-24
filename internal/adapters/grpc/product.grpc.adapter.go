@@ -48,7 +48,6 @@ func (p *ProductAdapter) ListProducts(ctx context.Context, req *productsV1.ListP
 	return &productsV1.ListProductsResponse{
 		NextCursor: products.NextCursor,
 		HasMore:    products.HasMore,
-		Products:   p.transform.ToProductsPb(products.Products),
+		Products:   p.transform.ToProductsPb(products.Data),
 	}, nil
-	// return p.transform.ToProductsResponsePb(products), nil
 }

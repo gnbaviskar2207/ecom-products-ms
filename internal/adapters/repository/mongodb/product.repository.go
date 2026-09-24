@@ -102,7 +102,7 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 	return &result.Payload, nil
 }
 
-func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedProducts, error) {
+func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedResult[*domain.Product], error) {
 	nextCursor := ""
 	filter := bson.M{}
 	if req != nil && req.NextCursor != "" {
@@ -137,8 +137,8 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.List
 	if len(products) > 0 {
 		nextCursor = utils.EncodeBase64Str(products[len(products)-1].Pid)
 	}
-	return &domain.PaginatedProducts{
-		Products:   products,
+	return &domain.PaginatedResult[*domain.Product]{
+		Data:       products,
 		NextCursor: nextCursor,
 		HasMore:    len(products) == 10,
 	}, nil
