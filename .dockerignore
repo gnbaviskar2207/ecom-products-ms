@@ -1,0 +1,4 @@
+./bin
+buf.*
+output.txt
+Dockerfile
