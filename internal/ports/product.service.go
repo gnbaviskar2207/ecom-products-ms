@@ -9,5 +9,5 @@ import (
 
 type ProductService interface {
 	FindOneByPid(ctx context.Context, pid string) (*domain.Product, error)
-	ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedProducts, error)
+	ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedResult[*domain.Product], error)
 }

@@ -2,30 +2,35 @@ syntax = "proto3";
 
 package proto.v1;
 
+import "validate/validate.proto";
+
 option go_package = "github.com/gnbaviskar2207/ecom-products-ms/gen/products;productsV1";
 
 // ProductService is the service for product-related operations
 service ProductService {
   // FindOneByPid finds a product by its product id
-  rpc FindOneByPid(FindOneByPidRequest) returns (Product);
+  rpc FindOneByPid(FindOneByPidRequest) returns (FindOneByPidResponse);
   // ListProducts finds and responds paginated products
   rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+}
+
+// FindOneByPidResponse represents a response to find a product by its product id
+message FindOneByPidResponse {
+  Product product = 1;
 }
 
 // ListProductsRequest represents a request to find products
 message ListProductsRequest {
   string next_cursor = 1;
-  int64 limit = 2;
+  int64  limit       = 2 [(validate.rules).int64 = {gte: 2, lte: 20}];
 }
 
 // ListProductsResponse represents a response to find products by their product ids
 message ListProductsResponse {
-  repeated Product products = 1;
-  string next_cursor = 2;
-  bool has_more = 3;
+  repeated Product products    = 1;
+  string           next_cursor = 2;
+  bool             has_more    = 3;
 }
-
-
 
 // FindOneByPidRequest represents a request to find a product by its product id
 message FindOneByPidRequest {

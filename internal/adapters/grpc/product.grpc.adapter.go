@@ -2,8 +2,10 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
+	errs "github.com/gnbaviskar2207/ecom-common/pkg/err"
 	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/ports"
@@ -21,17 +23,22 @@ func New(logger *slog.Logger, productService ports.ProductService, transform tra
 	return &ProductAdapter{productService: productService, logger: logger, transform: transform}
 }
 
-func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.FindOneByPidRequest) (*productsV1.Product, error) {
+func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.FindOneByPidRequest) (*productsV1.FindOneByPidResponse, error) {
 	p.logger.DebugContext(ctx, "FindOneByPid request received", slog.String("method", "grpc.adapter.FindOneByPid"), slog.Any("request", request))
-
 	product, err := p.productService.FindOneByPid(ctx, request.Pid)
 	if err != nil {
 		return nil, err
 	}
-	return p.transform.ToProductPb(product), nil
+	return &productsV1.FindOneByPidResponse{Product: p.transform.ToProductPb(product)}, nil
 }
 
 func (p *ProductAdapter) ListProducts(ctx context.Context, req *productsV1.ListProductsRequest) (*productsV1.ListProductsResponse, error) {
+	p.logger.DebugContext(ctx, "ListProducts request received", slog.String("method", "grpc.adapter.ListProducts"), slog.Any("request", req))
+
+	if err := req.Validate(); err != nil {
+		p.logger.ErrorContext(ctx, " validation failed", slog.String("method", "grpc.adapter.ListProducts"), slog.Any("error", err))
+		return nil, fmt.Errorf("%w: %v", errs.ErrInvalidArgument, err)
+	}
 	products, err := p.productService.ListProducts(ctx, &dto.ListProductsRequestDTO{
 		NextCursor: req.NextCursor,
 		Limit:      req.Limit,
@@ -42,7 +49,6 @@ func (p *ProductAdapter) ListProducts(ctx context.Context, req *productsV1.ListP
 	return &productsV1.ListProductsResponse{
 		NextCursor: products.NextCursor,
 		HasMore:    products.HasMore,
-		Products:   p.transform.ToProductsPb(products.Products),
+		Products:   p.transform.ToProductsPb(products.Data),
 	}, nil
-	// return p.transform.ToProductsResponsePb(products), nil
 }

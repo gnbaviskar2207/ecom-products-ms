@@ -10,3 +10,8 @@ plugins:
     out: gen/products
     opt:
       - paths=source_relative
+
+  - remote: buf.build/bufbuild/validate-go
+    out: gen/products
+    opt:
+      - paths=source_relative

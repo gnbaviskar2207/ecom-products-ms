@@ -53,7 +53,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(
+			grpcApi.ErrorInterceptor(logger),
+		),
+	)
 	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
 	if cfg.Environment == "development" {
 		reflection.Register(grpcServer)
