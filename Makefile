@@ -51,7 +51,7 @@ remove-stale-goverter-gen-files:
 
 remove-binaries:
 	@printf "$(YELLOW)==> Cleaning stale application binaries...$(RESET)\n"
-	@find ./bin/products -mindepth 1 -delete 2>/dev/null || true
+	@find ./bin -mindepth 1 -delete 2>/dev/null || true
 	@printf "$(GREEN)✓ Stale application binaries removed.$(RESET)\n"
 
 lint: ## Run linters (buf lint + go vet)
@@ -92,7 +92,7 @@ start-local: ## Start the application locally
 	make test
 	make build
 	make run-binary
-	@printf "$(GREEN)✓ Application started successfully.$(RESET)\n"
+	
 
 
 
