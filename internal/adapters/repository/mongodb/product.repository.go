@@ -118,7 +118,7 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.List
 	if req != nil && req.NextCursor != "" {
 		cursor, err := utils.DecodeBase64Str(req.NextCursor)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w %s", errs.ErrInvalidArgument, err)
 		}
 		filter["payload.pid"] = bson.M{"$gt": cursor}
 	}
