@@ -2,8 +2,10 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
+	errs "github.com/gnbaviskar2207/ecom-common/pkg/err"
 	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/ports"
@@ -26,7 +28,7 @@ func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.F
 
 	product, err := p.productService.FindOneByPid(ctx, request.Pid)
 	if err != nil {
-		return nil, err
+		return nil, errs.ToGRPCStatusError(ctx, err, p.logger, "grpc.adapter.FindOneByPid")
 	}
 	return p.transform.ToProductPb(product), nil
 }
@@ -36,14 +38,14 @@ func (p *ProductAdapter) ListProducts(ctx context.Context, req *productsV1.ListP
 
 	if err := req.Validate(); err != nil {
 		p.logger.ErrorContext(ctx, " validation failed", slog.String("method", "grpc.adapter.ListProducts"), slog.Any("error", err))
-		return nil, err
+		return nil, errs.ToGRPCStatusError(ctx, fmt.Errorf("%w: %v", errs.ErrInvalidArgument, err), p.logger, "grpc.adapter.ListProducts")
 	}
 	products, err := p.productService.ListProducts(ctx, &dto.ListProductsRequestDTO{
 		NextCursor: req.NextCursor,
 		Limit:      req.Limit,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errs.ToGRPCStatusError(ctx, err, p.logger, "grpc.adapter.ListProducts")
 	}
 	return &productsV1.ListProductsResponse{
 		NextCursor: products.NextCursor,

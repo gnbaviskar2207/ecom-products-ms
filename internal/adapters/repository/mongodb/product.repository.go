@@ -2,9 +2,11 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
+	errs "github.com/gnbaviskar2207/ecom-common/pkg/err"
 	"github.com/gnbaviskar2207/ecom-common/pkg/utils"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
@@ -94,8 +96,16 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 		Payload domain.Product `bson:"payload"`
 	}
 	cursor := m.collection.FindOne(ctx, bson.M{"payload.pid": pid}, options.FindOne().SetProjection(bson.D{{Key: "payload", Value: 1}}))
-	if err = cursor.Decode(&result); err != nil {
-		m.logger.ErrorContext(ctx, "product retrieval failed", slog.String("method", "repository.FindOneByPid"), "error", err.Error(), slog.String("pid", pid))
+	err = cursor.Decode(&result)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "product retrieval failed",
+			slog.String("method", "repository.FindOneByPid"),
+			slog.String("pid", pid),
+			slog.String("error", err.Error()),
+		)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("%w: pid=%s", errs.ErrNotFound, pid)
+		}
 		return nil, err
 	}
 	m.logger.DebugContext(ctx, "product retrieved", slog.String("method", "repository.FindOneByPid"), slog.String("pid", pid))
@@ -120,6 +130,14 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.List
 
 	cursor, err := m.collection.Find(ctx, filter, findOptions)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "product retrieval failed",
+			slog.String("method", "repository.ListProducts"),
+			slog.String("next_cursor", req.NextCursor),
+			slog.String("error", err.Error()),
+		)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("%w: next_cursor=%s", errs.ErrNotFound, req.NextCursor)
+		}
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -140,6 +158,6 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.List
 	return &domain.PaginatedResult[*domain.Product]{
 		Data:       products,
 		NextCursor: nextCursor,
-		HasMore:    len(products) == 10,
+		HasMore:    len(products) == int(req.Limit),
 	}, nil
 }

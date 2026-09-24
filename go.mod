@@ -4,7 +4,7 @@ go 1.24.13
 
 require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.0
-	github.com/gnbaviskar2207/ecom-common v0.0.2
+	github.com/gnbaviskar2207/ecom-common v0.0.4
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	go.mongodb.org/mongo-driver/v2 v2.2.2
 	google.golang.org/grpc v1.80.0
@@ -31,3 +31,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )
+
+replace github.com/gnbaviskar2207/ecom-common => ../ecom-common
