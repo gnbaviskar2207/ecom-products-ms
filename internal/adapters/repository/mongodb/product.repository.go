@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gnbaviskar2207/ecom-common/pkg/utils"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -102,22 +103,19 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 }
 
 func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.ListProductsRequestDTO) (*domain.PaginatedProducts, error) {
-	// TODO: filter yet not working as per cursor id
-	// TODO: cursor id to be encoded in base64 string
-	// TODO: make cursor id as secret
-	// TODO: limit logic not yet working
-	// TODO: pagination to be generic, change in query does not need to have same code again
-	//
-
+	nextCursor := ""
 	filter := bson.M{}
-
 	if req != nil && req.NextCursor != "" {
-		filter["payload.pid"] = bson.M{"$gt": req.NextCursor}
+		cursor, err := utils.DecodeBase64Str(req.NextCursor)
+		if err != nil {
+			return nil, err
+		}
+		filter["payload.pid"] = bson.M{"$gt": cursor}
 	}
 
 	findOptions := options.Find().
-		SetSort(bson.D{{Key: "payload.pid", Value: 1}}).
-		SetLimit(10).
+		SetSort(bson.D{{Key: "payload.pids", Value: 1}}).
+		SetLimit(req.Limit).
 		SetProjection(bson.D{{Key: "payload", Value: 1}})
 
 	cursor, err := m.collection.Find(ctx, filter, findOptions)
@@ -136,10 +134,12 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.List
 		}
 		products = append(products, &result.Payload)
 	}
-
+	if len(products) > 0 {
+		nextCursor = utils.EncodeBase64Str(products[len(products)-1].Pid)
+	}
 	return &domain.PaginatedProducts{
 		Products:   products,
-		NextCursor: products[len(products)-1].Pid,
+		NextCursor: nextCursor,
 		HasMore:    len(products) == 10,
 	}, nil
 }
