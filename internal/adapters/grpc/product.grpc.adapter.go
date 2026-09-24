@@ -23,13 +23,13 @@ func New(logger *slog.Logger, productService ports.ProductService, transform tra
 	return &ProductAdapter{productService: productService, logger: logger, transform: transform}
 }
 
-func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.FindOneByPidRequest) (*productsV1.Product, error) {
+func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.FindOneByPidRequest) (*productsV1.FindOneByPidResponse, error) {
 	p.logger.DebugContext(ctx, "FindOneByPid request received", slog.String("method", "grpc.adapter.FindOneByPid"), slog.Any("request", request))
 	product, err := p.productService.FindOneByPid(ctx, request.Pid)
 	if err != nil {
 		return nil, err
 	}
-	return p.transform.ToProductPb(product), nil
+	return &productsV1.FindOneByPidResponse{Product: p.transform.ToProductPb(product)}, nil
 }
 
 func (p *ProductAdapter) ListProducts(ctx context.Context, req *productsV1.ListProductsRequest) (*productsV1.ListProductsResponse, error) {

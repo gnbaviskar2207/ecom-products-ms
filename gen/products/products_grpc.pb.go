@@ -30,7 +30,7 @@ const (
 // ProductService is the service for product-related operations
 type ProductServiceClient interface {
 	// FindOneByPid finds a product by its product id
-	FindOneByPid(ctx context.Context, in *FindOneByPidRequest, opts ...grpc.CallOption) (*Product, error)
+	FindOneByPid(ctx context.Context, in *FindOneByPidRequest, opts ...grpc.CallOption) (*FindOneByPidResponse, error)
 	// ListProducts finds and responds paginated products
 	ListProducts(ctx context.Context, in *ListProductsRequest, opts ...grpc.CallOption) (*ListProductsResponse, error)
 }
@@ -43,9 +43,9 @@ func NewProductServiceClient(cc grpc.ClientConnInterface) ProductServiceClient {
 	return &productServiceClient{cc}
 }
 
-func (c *productServiceClient) FindOneByPid(ctx context.Context, in *FindOneByPidRequest, opts ...grpc.CallOption) (*Product, error) {
+func (c *productServiceClient) FindOneByPid(ctx context.Context, in *FindOneByPidRequest, opts ...grpc.CallOption) (*FindOneByPidResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Product)
+	out := new(FindOneByPidResponse)
 	err := c.cc.Invoke(ctx, ProductService_FindOneByPid_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (c *productServiceClient) ListProducts(ctx context.Context, in *ListProduct
 // ProductService is the service for product-related operations
 type ProductServiceServer interface {
 	// FindOneByPid finds a product by its product id
-	FindOneByPid(context.Context, *FindOneByPidRequest) (*Product, error)
+	FindOneByPid(context.Context, *FindOneByPidRequest) (*FindOneByPidResponse, error)
 	// ListProducts finds and responds paginated products
 	ListProducts(context.Context, *ListProductsRequest) (*ListProductsResponse, error)
 	mustEmbedUnimplementedProductServiceServer()
@@ -83,7 +83,7 @@ type ProductServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedProductServiceServer struct{}
 
-func (UnimplementedProductServiceServer) FindOneByPid(context.Context, *FindOneByPidRequest) (*Product, error) {
+func (UnimplementedProductServiceServer) FindOneByPid(context.Context, *FindOneByPidRequest) (*FindOneByPidResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FindOneByPid not implemented")
 }
 func (UnimplementedProductServiceServer) ListProducts(context.Context, *ListProductsRequest) (*ListProductsResponse, error) {
