@@ -1,4 +1,4 @@
-.PHONY: help tools gen-all buf-gen gov-gen lint test test-race build run
+.PHONY: help tools gen-all buf-gen gov-gen lint test test-race build run start-local buf-login buf-dep
 
 .DEFAULT_GOAL := help
 
@@ -49,6 +49,11 @@ remove-stale-goverter-gen-files:
 	@find ./internal/transform/generated -mindepth 1 -delete 2>/dev/null || true
 	@printf "$(GREEN)✓ Stale goverter files removed.$(RESET)\n"
 
+remove-binaries:
+	@printf "$(YELLOW)==> Cleaning stale application binaries...$(RESET)\n"
+	@find ./bin/products -mindepth 1 -delete 2>/dev/null || true
+	@printf "$(GREEN)✓ Stale application binaries removed.$(RESET)\n"
+
 lint: ## Run linters (buf lint + go vet)
 	@printf "$(CYAN)==> Running buf lint...$(RESET)\n"
 	buf lint
@@ -74,3 +79,46 @@ build: ## Build product microservice binary
 run: ## Run product microservice locally
 	@printf "$(CYAN)==> Starting product microservice...$(RESET)\n"
 	go run ./cmd/products/main.go --config=./config.yaml
+
+run-binary: ## Run the product service using binary
+	@printf "$(CYAN)==> Starting product microservice...$(RESET)\n"
+	./bin/products --config=./config.yaml
+
+start-local: ## Start the application locally
+	@printf "$(CYAN)==> Starting application locally...$(RESET)\n"
+	make remove-binaries
+	make gen-all
+	make lint
+	make test
+	make build
+	make run-binary
+	@printf "$(GREEN)✓ Application started successfully.$(RESET)\n"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// other command:
+buf-login: ## Login to buf to exit the rate limiting
+	@printf "$(CYAN)==> Logging in to buf registry...$(RESET)\n"
+	buf registry login
+	@printf "$(GREEN)✓ Logged in to buf registry successfully.$(RESET)\n"
+
+buf-dep: ## Install buf plugins like validation etc
+	@printf "$(CYAN)==> Installing buf plugins...$(RESET)\n"
+	buf dep update
+	@printf "$(GREEN)✓ Successfully installed buf plugins.$(RESET)\n"
