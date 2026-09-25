@@ -6,13 +6,11 @@ WORKDIR /workspace
 
 COPY ./go.mod ./go.sum ./
 
-# RUN go mod download
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY ./ .
 
-# RUN go build -o /products ./cmd/products/main.go
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux \
@@ -25,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 
 # Final stage with a minimal image
-FROM alpine:latest
+FROM alpine:3.24
 
 WORKDIR /workspace
 
