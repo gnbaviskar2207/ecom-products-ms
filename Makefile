@@ -92,8 +92,19 @@ start-local: ## Start the application locally
 	make test
 	make build
 	make run-binary
-	
 
+
+# docker-down: ## Stop and remove the docker containers
+# 	podman-compose -f docker-compose.yml down
+
+# docker-up: ## Start the application locally
+# 	podman-compose -f docker-compose.yml up -d
+
+# docker-up-build: ## Start the application locally
+# 	podman-compose -f docker-compose.yml up --build -d
+
+docker-up-local: ## Start the application locally in dev mode
+	podman-compose -f ./infra/compose/compose.local.yml up --build -d
 
 
 
