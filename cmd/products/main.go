@@ -80,7 +80,8 @@ func run() error {
 			PermitWithoutStream: cfg.GRPC.PermitWithoutStream,
 		}),
 	}
-	serverOptions = append(serverOptions, grpc.UnaryInterceptor(
+	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
+		grpcApi.RecoveryInterceptor(logger),
 		grpcApi.ErrorInterceptor(logger),
 	))
 	grpcServer := grpc.NewServer(serverOptions...)

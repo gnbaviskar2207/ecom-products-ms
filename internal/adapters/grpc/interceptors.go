@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"runtime/debug"
 
 	errs "github.com/gnbaviskar2207/ecom-common/pkg/err"
 	"google.golang.org/grpc"
@@ -29,5 +30,26 @@ func ErrorInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
 		}
 		return nil, errs.ToGRPCStatusError(ctx, err, logger, info.FullMethod)
+	}
+}
+
+func RecoveryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req any,
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (resp any, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.ErrorContext(ctx, "panic caught by interceptor",
+					slog.String("method", info.FullMethod),
+					slog.Any("panic", r),
+					slog.String("stack", string(debug.Stack())),
+				)
+				err = status.Errorf(codes.Internal, "internal server error")
+			}
+		}()
+		return handler(ctx, req)
 	}
 }
