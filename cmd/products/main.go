@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -92,6 +93,7 @@ func run() error {
 		}),
 	}
 	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
+		metrics.UnaryServerInterceptor(),
 		interceptors.RequestLoggerInterceptor(logger),
 		interceptors.RecoveryInterceptor(logger),
 		interceptors.ErrorInterceptor(logger),
@@ -113,8 +115,8 @@ func run() error {
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		pingCtx, pincCancel := context.WithTimeout(r.Context(), cfg.Mongo.Timeout)
-		defer pincCancel()
+		pingCtx, pingCancel := context.WithTimeout(r.Context(), cfg.Mongo.Timeout)
+		defer pingCancel()
 		if err := mongoRepo.Ping(pingCtx); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
@@ -136,21 +138,25 @@ func run() error {
 	}
 	errCh := make(chan error, 2)
 	go func() {
-		errCh <- grpcServer.Serve(listener)
+		if err := grpcServer.Serve(listener); err != nil {
+			errCh <- fmt.Errorf("grpc server: %w", err)
+		}
 	}()
 	go func() {
-		errCh <- httpServer.ListenAndServe()
+		if err := httpServer.ListenAndServe(); err != nil {
+			errCh <- fmt.Errorf("http server: %w", err)
+		}
 	}()
 
-	logger.Info("product service is running on", "grpc address", cfg.GRPC.Address)
+	logger.Info("product service is running", "grpc address", cfg.GRPC.Address, "http address", cfg.HTTP.Address)
 	select {
 	case <-rootCtx.Done():
 		logger.Info("shutting down the product server(signal received)")
 
 	case err := <-errCh:
-		logger.Error("grpc server stopped unexpectedly", "error", err)
+		logger.Error("product server stopped unexpectedly", "error", err)
 	}
-
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 	rootCtxCancel()
 
 	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), cfg.GRPC.ShutdownTimeout)
@@ -171,7 +177,7 @@ func run() error {
 		grpcServer.Stop()
 	case <-stoppedCh:
 	}
-	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
 	logger.Info("grpc server is stopped")
 	logger.Info("shutting down mongo db")
 	mongodbCloseCtx, mongodbCloseCancel := context.WithTimeout(context.Background(), cfg.Mongo.Timeout)
