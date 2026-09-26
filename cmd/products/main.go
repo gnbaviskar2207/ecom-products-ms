@@ -16,6 +16,7 @@ import (
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform/generated"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -53,11 +54,36 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(
-			grpcApi.ErrorInterceptor(logger),
-		),
-	)
+
+	serverOptions := []grpc.ServerOption{
+		// Client ---> [large request] ---> gRPC Server
+		//                                  ❌ rejected if > MaxReceiveBytes
+		grpc.MaxRecvMsgSize(int(cfg.GRPC.MaxReceiveBytes)),
+		//   Server ---> [large response] ---> Client
+		//                  ❌ rejected if > MaxSendBytes
+		grpc.MaxSendMsgSize(int(cfg.GRPC.MaxSendBytes)),
+
+		// keepalive is used to keep the connection alive
+		// Keepalive allows the server to periodically send an HTTP/2 PING frame to check whether the client/connection is still alive.
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			// How long the server waits before sending a keepalive PING
+			Time: cfg.GRPC.KeepAliveTime,
+			// How long the server waits for a response to the PING.
+			Timeout: cfg.GRPC.KeepAliveTimeout,
+		}),
+
+		// Controls which keepalive PINGs from clients the server will accept.
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			// EnforcementMinTime defines the minimum allowed interval between keepalive PINGs.
+			MinTime: cfg.GRPC.EnforcementMinTime,
+			// Determines whether the client is allowed to send keepalive PINGs.
+			PermitWithoutStream: cfg.GRPC.PermitWithoutStream,
+		}),
+	}
+	serverOptions = append(serverOptions, grpc.UnaryInterceptor(
+		grpcApi.ErrorInterceptor(logger),
+	))
+	grpcServer := grpc.NewServer(serverOptions...)
 	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
 	if cfg.Environment == "development" {
 		reflection.Register(grpcServer)
