@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gnbaviskar2207/ecom-common/pkg/interceptors"
 	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
 	grpcApi "github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/grpc"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
@@ -81,8 +82,8 @@ func run() error {
 		}),
 	}
 	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
-		grpcApi.RecoveryInterceptor(logger),
-		grpcApi.ErrorInterceptor(logger),
+		interceptors.RecoveryInterceptor(logger),
+		interceptors.ErrorInterceptor(logger),
 	))
 	grpcServer := grpc.NewServer(serverOptions...)
 	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
