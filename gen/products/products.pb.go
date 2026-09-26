@@ -469,9 +469,9 @@ const file_products_proto_rawDesc = "" +
 	"\n" +
 	"\x0eproducts.proto\x12\bproto.v1\x1a\x17validate/validate.proto\"C\n" +
 	"\x14FindOneByPidResponse\x12+\n" +
-	"\aproduct\x18\x01 \x01(\v2\x11.proto.v1.ProductR\aproduct\"W\n" +
-	"\x13ListProductsRequest\x12\x1f\n" +
-	"\vnext_cursor\x18\x01 \x01(\tR\n" +
+	"\aproduct\x18\x01 \x01(\v2\x11.proto.v1.ProductR\aproduct\"a\n" +
+	"\x13ListProductsRequest\x12)\n" +
+	"\vnext_cursor\x18\x01 \x01(\tB\b\xfaB\x05r\x03\x18\x80\x02R\n" +
 	"nextCursor\x12\x1f\n" +
 	"\x05limit\x18\x02 \x01(\x03B\t\xfaB\x06\"\x04\x18\x14(\x02R\x05limit\"\x81\x01\n" +
 	"\x14ListProductsResponse\x12-\n" +

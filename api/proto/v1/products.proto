@@ -21,7 +21,7 @@ message FindOneByPidResponse {
 
 // ListProductsRequest represents a request to find products
 message ListProductsRequest {
-  string next_cursor = 1;
+  string next_cursor = 1 [(validate.rules).string = {max_len: 256}];
   int64  limit       = 2 [(validate.rules).int64 = {gte: 2, lte: 20}];
 }
 

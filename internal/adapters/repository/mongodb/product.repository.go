@@ -120,11 +120,20 @@ func (m *MongoProductRepository) ListProducts(ctx context.Context, req *dto.List
 		if err != nil {
 			return nil, fmt.Errorf("%w %s", errs.ErrInvalidArgument, err)
 		}
+		if len(cursor) < 10 || len(cursor) > 64 {
+			m.logger.ErrorContext(ctx, "invalid cursor length",
+				slog.String("method", "repository.ListProducts"),
+				slog.String("next_cursor", req.NextCursor),
+				slog.String("decoded_cursor", cursor),
+				slog.Int("cursor_length", len(cursor)),
+			)
+			return nil, fmt.Errorf("%w: invalid cursor=%s", errs.ErrInvalidArgument, req.NextCursor)
+		}
 		filter["payload.pid"] = bson.M{"$gt": cursor}
 	}
 
 	findOptions := options.Find().
-		SetSort(bson.D{{Key: "payload.pids", Value: 1}}).
+		SetSort(bson.D{{Key: "payload.pid", Value: 1}}).
 		SetLimit(req.Limit).
 		SetProjection(bson.D{{Key: "payload", Value: 1}})
 

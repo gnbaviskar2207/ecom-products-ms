@@ -188,7 +188,16 @@ func (m *ListProductsRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for NextCursor
+	if utf8.RuneCountInString(m.GetNextCursor()) > 256 {
+		err := ListProductsRequestValidationError{
+			field:  "NextCursor",
+			reason: "value length must be at most 256 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
 
 	if val := m.GetLimit(); val < 2 || val > 20 {
 		err := ListProductsRequestValidationError{
