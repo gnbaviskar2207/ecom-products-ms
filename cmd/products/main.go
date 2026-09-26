@@ -17,6 +17,8 @@ import (
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform/generated"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
@@ -88,6 +90,12 @@ func run() error {
 	))
 	grpcServer := grpc.NewServer(serverOptions...)
 	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
+
+	// health server
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
 	if cfg.Environment == "development" {
 		reflection.Register(grpcServer)
 		logger.Info("grpc reflection is enabled")
@@ -125,6 +133,7 @@ func run() error {
 		grpcServer.Stop()
 	case <-stoppedCh:
 	}
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 	logger.Info("grpc server is stopped")
 	logger.Info("shutting down mongo db")
 	mongodbCloseCtx, mongodbCloseCancel := context.WithTimeout(context.Background(), cfg.Mongo.Timeout)
