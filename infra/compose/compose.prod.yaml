@@ -1,0 +1,15 @@
+services:
+  ecom-product-service:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+
+    image: localhost/ecom-product-service:prod
+    container_name: ecom-product-service
+
+    ports:
+      - "50051:50051"
+      - "9091:9091"
+
+    environment:
+      ENVIRONMENT: development

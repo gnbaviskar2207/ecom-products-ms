@@ -2,3 +2,10 @@
 buf.*
 output.txt
 Dockerfile
+.git
+.gitignore
+.vscode
+infra
+*.md
+LICENSE
+Makefile
