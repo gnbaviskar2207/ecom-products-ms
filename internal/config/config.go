@@ -24,7 +24,7 @@ type Config struct {
 		PermitWithoutStream bool          `yaml:"permit_without_stream" env:"GRPC_PERMIT_WITHOUT_STREAM" env-default:"false"`
 	}
 	HTTP struct {
-		Address string `yaml:"address" env:"HTTP_ADDRESS" env-default:":9090"`
+		Address string `yaml:"address" env:"HTTP_ADDRESS" env-default:":9091"`
 	}
 	Mongo struct {
 		URL        string        `yaml:"url" env:"MONGO_URL" env-default:"mongodb://localhost:27017"`

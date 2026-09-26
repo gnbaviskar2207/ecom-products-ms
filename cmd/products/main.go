@@ -5,9 +5,11 @@ import (
 	"flag"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gnbaviskar2207/ecom-common/pkg/interceptors"
 	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
@@ -16,6 +18,9 @@ import (
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform/generated"
+	prom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -58,6 +63,9 @@ func run() error {
 		return err
 	}
 
+	metrics := prom.NewServerMetrics()
+	prometheus.MustRegister(metrics)
+
 	serverOptions := []grpc.ServerOption{
 		// Client ---> [large request] ---> gRPC Server
 		//                                  ❌ rejected if > MaxReceiveBytes
@@ -95,17 +103,46 @@ func run() error {
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
 	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	metrics.InitializeMetrics(grpcServer)
+	mux := http.NewServeMux()
+
+	mux.Handle("/metrics", promhttp.Handler())
+
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		pingCtx, pincCancel := context.WithTimeout(r.Context(), cfg.Mongo.Timeout)
+		defer pincCancel()
+		if err := mongoRepo.Ping(pingCtx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	httpServer := &http.Server{
+		Addr:              cfg.HTTP.Address,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1MB
+	}
 
 	if cfg.Environment == "development" {
 		reflection.Register(grpcServer)
 		logger.Info("grpc reflection is enabled")
 	}
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() {
 		errCh <- grpcServer.Serve(listener)
 	}()
+	go func() {
+		errCh <- httpServer.ListenAndServe()
+	}()
 
-	logger.Info("product service is running on", "address", cfg.GRPC.Address)
+	logger.Info("product service is running on", "grpc address", cfg.GRPC.Address)
 	select {
 	case <-rootCtx.Done():
 		logger.Info("shutting down the product server(signal received)")
@@ -119,6 +156,7 @@ func run() error {
 	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), cfg.GRPC.ShutdownTimeout)
 	defer shutDownCancel()
 
+	_ = httpServer.Shutdown(shutDownContext)
 	stoppedCh := make(chan struct{})
 
 	go func() {
