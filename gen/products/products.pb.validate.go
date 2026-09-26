@@ -443,7 +443,16 @@ func (m *FindOneByPidRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Pid
+	if l := utf8.RuneCountInString(m.GetPid()); l < 10 || l > 64 {
+		err := FindOneByPidRequestValidationError{
+			field:  "Pid",
+			reason: "value length must be between 10 and 64 runes, inclusive",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
 
 	if len(errors) > 0 {
 		return FindOneByPidRequestMultiError(errors)

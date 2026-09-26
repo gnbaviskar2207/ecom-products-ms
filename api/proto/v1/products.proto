@@ -34,7 +34,7 @@ message ListProductsResponse {
 
 // FindOneByPidRequest represents a request to find a product by its product id
 message FindOneByPidRequest {
-  string pid = 1;
+  string pid = 1 [(validate.rules).string = {min_len: 10, max_len: 64}];
 }
 
 // Product represents a product in the catalogue

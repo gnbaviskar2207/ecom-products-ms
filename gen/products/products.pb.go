@@ -478,9 +478,10 @@ const file_products_proto_rawDesc = "" +
 	"\bproducts\x18\x01 \x03(\v2\x11.proto.v1.ProductR\bproducts\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"'\n" +
-	"\x13FindOneByPidRequest\x12\x10\n" +
-	"\x03pid\x18\x01 \x01(\tR\x03pid\"\xd7\x06\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"2\n" +
+	"\x13FindOneByPidRequest\x12\x1b\n" +
+	"\x03pid\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\n" +
+	"\x18@R\x03pid\"\xd7\x06\n" +
 	"\aProduct\x12\x10\n" +
 	"\x03pid\x18\x01 \x01(\tR\x03pid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x10\n" +
