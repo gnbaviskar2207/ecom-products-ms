@@ -24,7 +24,11 @@ func New(logger *slog.Logger, productService ports.ProductService, transform tra
 }
 
 func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.FindOneByPidRequest) (*productsV1.FindOneByPidResponse, error) {
-	p.logger.DebugContext(ctx, "FindOneByPid request received", slog.String("method", "grpc.adapter.FindOneByPid"), slog.Any("request", request))
+
+	if err := request.Validate(); err != nil {
+		p.logger.ErrorContext(ctx, " validation failed", slog.String("method", "grpc.adapter.FindOneByPid"), slog.Any("error", err))
+		return nil, fmt.Errorf("%w: %v", errs.ErrInvalidArgument, err)
+	}
 	product, err := p.productService.FindOneByPid(ctx, request.Pid)
 	if err != nil {
 		return nil, err
@@ -33,7 +37,6 @@ func (p *ProductAdapter) FindOneByPid(ctx context.Context, request *productsV1.F
 }
 
 func (p *ProductAdapter) ListProducts(ctx context.Context, req *productsV1.ListProductsRequest) (*productsV1.ListProductsResponse, error) {
-	p.logger.DebugContext(ctx, "ListProducts request received", slog.String("method", "grpc.adapter.ListProducts"), slog.Any("request", req))
 
 	if err := req.Validate(); err != nil {
 		p.logger.ErrorContext(ctx, " validation failed", slog.String("method", "grpc.adapter.ListProducts"), slog.Any("error", err))

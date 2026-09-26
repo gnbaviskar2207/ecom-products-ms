@@ -3,19 +3,29 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/gnbaviskar2207/ecom-common/pkg/interceptors"
 	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
 	grpcApi "github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/grpc"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform/generated"
+	prom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -53,35 +63,106 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(
-			grpcApi.ErrorInterceptor(logger),
-		),
-	)
+
+	metrics := prom.NewServerMetrics()
+	prometheus.MustRegister(metrics)
+
+	serverOptions := []grpc.ServerOption{
+		// Client ---> [large request] ---> gRPC Server
+		//                                  ❌ rejected if > MaxReceiveBytes
+		grpc.MaxRecvMsgSize(int(cfg.GRPC.MaxReceiveBytes)),
+		//   Server ---> [large response] ---> Client
+		//                  ❌ rejected if > MaxSendBytes
+		grpc.MaxSendMsgSize(int(cfg.GRPC.MaxSendBytes)),
+
+		// keepalive is used to keep the connection alive
+		// Keepalive allows the server to periodically send an HTTP/2 PING frame to check whether the client/connection is still alive.
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			// How long the server waits before sending a keepalive PING
+			Time: cfg.GRPC.KeepAliveTime,
+			// How long the server waits for a response to the PING.
+			Timeout: cfg.GRPC.KeepAliveTimeout,
+		}),
+
+		// Controls which keepalive PINGs from clients the server will accept.
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			// EnforcementMinTime defines the minimum allowed interval between keepalive PINGs.
+			MinTime: cfg.GRPC.EnforcementMinTime,
+			// Determines whether the client is allowed to send keepalive PINGs.
+			PermitWithoutStream: cfg.GRPC.PermitWithoutStream,
+		}),
+	}
+	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
+		metrics.UnaryServerInterceptor(),
+		interceptors.RequestLoggerInterceptor(logger),
+		interceptors.RecoveryInterceptor(logger),
+		interceptors.ErrorInterceptor(logger),
+	))
+	grpcServer := grpc.NewServer(serverOptions...)
 	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
+
+	// health server
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	metrics.InitializeMetrics(grpcServer)
+	mux := http.NewServeMux()
+
+	mux.Handle("/metrics", promhttp.Handler())
+
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		pingCtx, pingCancel := context.WithTimeout(r.Context(), cfg.Mongo.Timeout)
+		defer pingCancel()
+		if err := mongoRepo.Ping(pingCtx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	httpServer := &http.Server{
+		Addr:              cfg.HTTP.Address,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1MB
+	}
+
 	if cfg.Environment == "development" {
 		reflection.Register(grpcServer)
 		logger.Info("grpc reflection is enabled")
 	}
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() {
-		errCh <- grpcServer.Serve(listener)
+		if err := grpcServer.Serve(listener); err != nil {
+			errCh <- fmt.Errorf("grpc server: %w", err)
+		}
+	}()
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil {
+			errCh <- fmt.Errorf("http server: %w", err)
+		}
 	}()
 
-	logger.Info("product service is running on", "address", cfg.GRPC.Address)
+	logger.Info("product service is running", "grpc address", cfg.GRPC.Address, "http address", cfg.HTTP.Address)
 	select {
 	case <-rootCtx.Done():
 		logger.Info("shutting down the product server(signal received)")
 
 	case err := <-errCh:
-		logger.Error("grpc server stopped unexpectedly", "error", err)
+		logger.Error("product server stopped unexpectedly", "error", err)
 	}
-
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 	rootCtxCancel()
 
 	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), cfg.GRPC.ShutdownTimeout)
 	defer shutDownCancel()
 
+	_ = httpServer.Shutdown(shutDownContext)
 	stoppedCh := make(chan struct{})
 
 	go func() {
@@ -96,6 +177,7 @@ func run() error {
 		grpcServer.Stop()
 	case <-stoppedCh:
 	}
+
 	logger.Info("grpc server is stopped")
 	logger.Info("shutting down mongo db")
 	mongodbCloseCtx, mongodbCloseCancel := context.WithTimeout(context.Background(), cfg.Mongo.Timeout)

@@ -188,7 +188,16 @@ func (m *ListProductsRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for NextCursor
+	if utf8.RuneCountInString(m.GetNextCursor()) > 256 {
+		err := ListProductsRequestValidationError{
+			field:  "NextCursor",
+			reason: "value length must be at most 256 runes",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
 
 	if val := m.GetLimit(); val < 2 || val > 20 {
 		err := ListProductsRequestValidationError{
@@ -443,7 +452,16 @@ func (m *FindOneByPidRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Pid
+	if l := utf8.RuneCountInString(m.GetPid()); l < 10 || l > 64 {
+		err := FindOneByPidRequestValidationError{
+			field:  "Pid",
+			reason: "value length must be between 10 and 64 runes, inclusive",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
 
 	if len(errors) > 0 {
 		return FindOneByPidRequestMultiError(errors)
