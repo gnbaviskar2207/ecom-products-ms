@@ -4,7 +4,7 @@ go 1.24.13
 
 require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.0
-	github.com/gnbaviskar2207/ecom-common v0.0.5
+	github.com/gnbaviskar2207/ecom-common v0.0.6
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	go.mongodb.org/mongo-driver/v2 v2.2.2
 	google.golang.org/grpc v1.80.0

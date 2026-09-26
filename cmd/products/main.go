@@ -82,6 +82,7 @@ func run() error {
 		}),
 	}
 	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
+		interceptors.RequestLoggerInterceptor(logger),
 		interceptors.RecoveryInterceptor(logger),
 		interceptors.ErrorInterceptor(logger),
 	))
