@@ -32,4 +32,5 @@ COPY --from=builder /workspace/config.yaml /workspace/config.yaml
 
 EXPOSE 50051 9091
 
-ENTRYPOINT ["/bin/products", "-config", "/workspace/config.yaml"]
+ENTRYPOINT ["/bin/products"]
+CMD ["-config", "/workspace/config.yaml"]
