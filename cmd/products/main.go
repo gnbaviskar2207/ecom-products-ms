@@ -46,7 +46,7 @@ func run() error {
 	srv.start(rootCtx)
 	rootCtxCancel()
 
-	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), s.cfg.GRPCConfig.ShutdownTimeout)
+	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), srv.cfg.GRPCConfig.ShutdownTimeout)
 	defer shutDownCancel()
 	return srv.shutDown(shutDownContext)
 }

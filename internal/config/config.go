@@ -8,7 +8,9 @@ import (
 
 type Config struct {
 	commonConfig.CommonConfig `yaml:",inline"`
-
+	commonConfig.MongoConfig  `yaml:"mongo"`
+	commonConfig.GRPCConfig   `yaml:"grpc"`
+	commonConfig.HTTPConfig   `yaml:"http"`
 	// Product ProductConfig `yaml:"product"`
 }
 
