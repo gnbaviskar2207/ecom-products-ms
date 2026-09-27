@@ -6,7 +6,6 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.0
 	github.com/gnbaviskar2207/ecom-common v0.0.6
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
-	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/prometheus/client_golang v1.21.1
 	go.mongodb.org/mongo-driver/v2 v2.2.2
 	google.golang.org/grpc v1.80.0
@@ -19,6 +18,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0 // indirect
+	github.com/ilyakaznacheev/cleanenv v1.5.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/kr/text v0.2.0 // indirect
