@@ -49,9 +49,10 @@ func run() error {
 
 	rootCtx, rootCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	connectCtx, connectCancel := context.WithTimeout(rootCtx, cfg.Mongo.Timeout)
+	connectCtx, connectCancel := context.WithTimeout(rootCtx, cfg.MongoConfig.Timeout)
 	defer connectCancel()
-	mongoRepo, err := mongodb.New(connectCtx, cfg.Mongo.URL, cfg.Mongo.Database, cfg.Mongo.Collection, logger)
+	logger.Info("connecting to mongodb", "url", cfg.MongoConfig.URL, "database", cfg.MongoConfig.Database, "collection", cfg.MongoConfig.Collection)
+	mongoRepo, err := mongodb.New(connectCtx, cfg.MongoConfig.URL, cfg.MongoConfig.Database, cfg.MongoConfig.Collection, logger)
 	if err != nil {
 		return err
 	}
@@ -59,7 +60,7 @@ func run() error {
 	productService := services.New(mongoRepo, logger)
 	productGRPCAdapter := grpcApi.New(logger, productService, transform)
 
-	listener, err := net.Listen("tcp", cfg.GRPC.Address)
+	listener, err := net.Listen("tcp", cfg.GRPCConfig.Address)
 	if err != nil {
 		return err
 	}
@@ -70,26 +71,26 @@ func run() error {
 	serverOptions := []grpc.ServerOption{
 		// Client ---> [large request] ---> gRPC Server
 		//                                  ❌ rejected if > MaxReceiveBytes
-		grpc.MaxRecvMsgSize(int(cfg.GRPC.MaxReceiveBytes)),
+		grpc.MaxRecvMsgSize(int(cfg.GRPCConfig.MaxReceiveBytes)),
 		//   Server ---> [large response] ---> Client
 		//                  ❌ rejected if > MaxSendBytes
-		grpc.MaxSendMsgSize(int(cfg.GRPC.MaxSendBytes)),
+		grpc.MaxSendMsgSize(int(cfg.GRPCConfig.MaxSendBytes)),
 
 		// keepalive is used to keep the connection alive
 		// Keepalive allows the server to periodically send an HTTP/2 PING frame to check whether the client/connection is still alive.
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			// How long the server waits before sending a keepalive PING
-			Time: cfg.GRPC.KeepAliveTime,
+			Time: cfg.GRPCConfig.KeepAliveTime,
 			// How long the server waits for a response to the PING.
-			Timeout: cfg.GRPC.KeepAliveTimeout,
+			Timeout: cfg.GRPCConfig.KeepAliveTimeout,
 		}),
 
 		// Controls which keepalive PINGs from clients the server will accept.
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			// EnforcementMinTime defines the minimum allowed interval between keepalive PINGs.
-			MinTime: cfg.GRPC.EnforcementMinTime,
+			MinTime: cfg.GRPCConfig.EnforcementMinTime,
 			// Determines whether the client is allowed to send keepalive PINGs.
-			PermitWithoutStream: cfg.GRPC.PermitWithoutStream,
+			PermitWithoutStream: cfg.GRPCConfig.PermitWithoutStream,
 		}),
 	}
 	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
@@ -115,7 +116,7 @@ func run() error {
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		pingCtx, pingCancel := context.WithTimeout(r.Context(), cfg.Mongo.Timeout)
+		pingCtx, pingCancel := context.WithTimeout(r.Context(), cfg.MongoConfig.Timeout)
 		defer pingCancel()
 		if err := mongoRepo.Ping(pingCtx); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -125,7 +126,7 @@ func run() error {
 	})
 
 	httpServer := &http.Server{
-		Addr:              cfg.HTTP.Address,
+		Addr:              cfg.HTTPConfig.Address,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
@@ -148,7 +149,7 @@ func run() error {
 		}
 	}()
 
-	logger.Info("product service is running", "grpc address", cfg.GRPC.Address, "http address", cfg.HTTP.Address)
+	logger.Info("product service is running", "grpc address", cfg.GRPCConfig.Address, "http address", cfg.HTTPConfig.Address)
 	select {
 	case <-rootCtx.Done():
 		logger.Info("shutting down the product server(signal received)")
@@ -159,7 +160,7 @@ func run() error {
 	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 	rootCtxCancel()
 
-	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), cfg.GRPC.ShutdownTimeout)
+	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), cfg.GRPCConfig.ShutdownTimeout)
 	defer shutDownCancel()
 
 	_ = httpServer.Shutdown(shutDownContext)
@@ -180,7 +181,7 @@ func run() error {
 
 	logger.Info("grpc server is stopped")
 	logger.Info("shutting down mongo db")
-	mongodbCloseCtx, mongodbCloseCancel := context.WithTimeout(context.Background(), cfg.Mongo.Timeout)
+	mongodbCloseCtx, mongodbCloseCancel := context.WithTimeout(context.Background(), cfg.MongoConfig.Timeout)
 	defer mongodbCloseCancel()
 	if err = mongoRepo.Close(mongodbCloseCtx); err != nil {
 		logger.Error("mongodb shutdown failed",
