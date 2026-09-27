@@ -3,30 +3,12 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log/slog"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/gnbaviskar2207/ecom-common/pkg/interceptors"
-	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
-	grpcApi "github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/grpc"
-	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
-	"github.com/gnbaviskar2207/ecom-products-ms/internal/services"
-	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform/generated"
-	prom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -46,150 +28,25 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	srv := New(cfg, logger)
 
 	rootCtx, rootCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-
-	connectCtx, connectCancel := context.WithTimeout(rootCtx, cfg.MongoConfig.Timeout)
-	defer connectCancel()
-	logger.Info("connecting to mongodb", "url", cfg.MongoConfig.URL, "database", cfg.MongoConfig.Database, "collection", cfg.MongoConfig.Collection)
-	mongoRepo, err := mongodb.New(connectCtx, cfg.MongoConfig.URL, cfg.MongoConfig.Database, cfg.MongoConfig.Collection, logger)
-	if err != nil {
+	if err := srv.connectMongo(rootCtx); err != nil {
 		return err
 	}
-	transform := &generated.ConverterImpl{}
-	productService := services.New(mongoRepo, logger)
-	productGRPCAdapter := grpcApi.New(logger, productService, transform)
+	metrics := srv.initMetrics()
+	srv.buildServices()
 
-	listener, err := net.Listen("tcp", cfg.GRPCConfig.Address)
-	if err != nil {
+	if err := srv.buildGRPCServer(metrics); err != nil {
 		return err
 	}
+	srv.buildHTTPServer()
+	srv.registerOpsRoutes()
 
-	metrics := prom.NewServerMetrics()
-	prometheus.MustRegister(metrics)
-
-	serverOptions := []grpc.ServerOption{
-		// Client ---> [large request] ---> gRPC Server
-		//                                  ❌ rejected if > MaxReceiveBytes
-		grpc.MaxRecvMsgSize(int(cfg.GRPCConfig.MaxReceiveBytes)),
-		//   Server ---> [large response] ---> Client
-		//                  ❌ rejected if > MaxSendBytes
-		grpc.MaxSendMsgSize(int(cfg.GRPCConfig.MaxSendBytes)),
-
-		// keepalive is used to keep the connection alive
-		// Keepalive allows the server to periodically send an HTTP/2 PING frame to check whether the client/connection is still alive.
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			// How long the server waits before sending a keepalive PING
-			Time: cfg.GRPCConfig.KeepAliveTime,
-			// How long the server waits for a response to the PING.
-			Timeout: cfg.GRPCConfig.KeepAliveTimeout,
-		}),
-
-		// Controls which keepalive PINGs from clients the server will accept.
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			// EnforcementMinTime defines the minimum allowed interval between keepalive PINGs.
-			MinTime: cfg.GRPCConfig.EnforcementMinTime,
-			// Determines whether the client is allowed to send keepalive PINGs.
-			PermitWithoutStream: cfg.GRPCConfig.PermitWithoutStream,
-		}),
-	}
-	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
-		metrics.UnaryServerInterceptor(),
-		interceptors.RequestLoggerInterceptor(logger),
-		interceptors.RecoveryInterceptor(logger),
-		interceptors.ErrorInterceptor(logger),
-	))
-	grpcServer := grpc.NewServer(serverOptions...)
-	productsV1.RegisterProductServiceServer(grpcServer, productGRPCAdapter)
-
-	// health server
-	healthServer := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
-	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
-	metrics.InitializeMetrics(grpcServer)
-	mux := http.NewServeMux()
-
-	mux.Handle("/metrics", promhttp.Handler())
-
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		pingCtx, pingCancel := context.WithTimeout(r.Context(), cfg.MongoConfig.Timeout)
-		defer pingCancel()
-		if err := mongoRepo.Ping(pingCtx); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	})
-
-	httpServer := &http.Server{
-		Addr:              cfg.HTTPConfig.Address,
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    1 << 20, // 1MB
-	}
-
-	if cfg.Environment == "development" {
-		reflection.Register(grpcServer)
-		logger.Info("grpc reflection is enabled")
-	}
-	errCh := make(chan error, 2)
-	go func() {
-		if err := grpcServer.Serve(listener); err != nil {
-			errCh <- fmt.Errorf("grpc server: %w", err)
-		}
-	}()
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil {
-			errCh <- fmt.Errorf("http server: %w", err)
-		}
-	}()
-
-	logger.Info("product service is running", "grpc address", cfg.GRPCConfig.Address, "http address", cfg.HTTPConfig.Address)
-	select {
-	case <-rootCtx.Done():
-		logger.Info("shutting down the product server(signal received)")
-
-	case err := <-errCh:
-		logger.Error("product server stopped unexpectedly", "error", err)
-	}
-	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+	srv.start(rootCtx)
 	rootCtxCancel()
 
-	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), cfg.GRPCConfig.ShutdownTimeout)
+	shutDownContext, shutDownCancel := context.WithTimeout(context.Background(), s.cfg.GRPCConfig.ShutdownTimeout)
 	defer shutDownCancel()
-
-	_ = httpServer.Shutdown(shutDownContext)
-	stoppedCh := make(chan struct{})
-
-	go func() {
-		// allow the inflight/pending requests to complete
-		grpcServer.GracefulStop()
-		close(stoppedCh)
-	}()
-
-	select {
-	case <-shutDownContext.Done():
-		logger.Error("graceful shutdown timed out, forcing ")
-		grpcServer.Stop()
-	case <-stoppedCh:
-	}
-
-	logger.Info("grpc server is stopped")
-	logger.Info("shutting down mongo db")
-	mongodbCloseCtx, mongodbCloseCancel := context.WithTimeout(context.Background(), cfg.MongoConfig.Timeout)
-	defer mongodbCloseCancel()
-	if err = mongoRepo.Close(mongodbCloseCtx); err != nil {
-		logger.Error("mongodb shutdown failed",
-			"error", err,
-		)
-	} else {
-		logger.Info("mongodb gracefull shutdown complete")
-	}
-	logger.Info("graceful shutdown of product service is complete")
-	return nil
+	return srv.shutDown(shutDownContext)
 }
