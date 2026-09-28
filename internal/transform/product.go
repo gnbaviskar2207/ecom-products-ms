@@ -1,7 +1,7 @@
 package transform
 
 import (
-	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
+	productsV1 "github.com/gnbaviskar2207/ecom-common/pkg/gen/products"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
 )
 

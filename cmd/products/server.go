@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gnbaviskar2207/ecom-common/pkg/interceptors"
-	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
+
 	grpcApi "github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/grpc"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
@@ -25,6 +25,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+
+	productsV1 "github.com/gnbaviskar2207/ecom-common/pkg/gen/products"
 )
 
 type Server struct {
