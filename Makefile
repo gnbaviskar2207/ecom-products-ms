@@ -69,7 +69,7 @@ build: ## Build product microservice binary
 
 run: ## Run product microservice locally
 	@printf "$(CYAN)==> Starting product microservice...$(RESET)\n"
-	go run ./cmd/products/main.go --config=./config.yaml
+	go run ./cmd/products --config=./config.yaml
 
 run-binary: ## Run the product service using binary
 	@printf "$(CYAN)==> Starting product microservice...$(RESET)\n"
