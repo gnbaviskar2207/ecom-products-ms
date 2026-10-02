@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gnbaviskar2207/ecom-common/pkg/interceptors"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	grpcApi "github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/grpc"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/adapters/repository/mongodb"
@@ -70,6 +71,8 @@ func (s *Server) buildGRPCServer(metrics *prom.ServerMetrics) error {
 		return err
 	}
 	serverOptions := []grpc.ServerOption{
+		// Otel StatsHandler
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		// Client ---> [large request] ---> gRPC Server
 		//                                  ❌ rejected if > MaxReceiveBytes
 		grpc.MaxRecvMsgSize(int(s.cfg.GRPCConfig.MaxReceiveBytes)),

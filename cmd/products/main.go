@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gnbaviskar2207/ecom-common/pkg/telemetry"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/config"
 )
 
@@ -19,7 +20,8 @@ func main() {
 }
 
 func run() error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logBaseHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	logger := slog.New(telemetry.NewTracehandler(logBaseHandler))
 	slog.SetDefault(logger)
 	configPath := flag.String("config", "./configs/dev/config.yaml", "optional YAML configuration file")
 	flag.Parse()
@@ -31,6 +33,25 @@ func run() error {
 	srv := New(cfg, logger)
 
 	rootCtx, rootCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer rootCtxCancel()
+
+	shutDownTracer, err := telemetry.InitTracer(rootCtx, telemetry.Config{
+		ServiceName:    cfg.ServiceName,
+		ServiceVersion: cfg.ServiceVersion,
+		Environment:    cfg.Environment,
+		CollectorURL:   "localhost:4317",
+	})
+	if err != nil {
+		logger.Error("failed to initialize tracer", "error", err)
+		return err
+	}
+
+	defer func() {
+		if shutDownTracer != nil {
+			err = shutDownTracer(context.Background())
+		}
+	}()
+
 	if err := srv.connectMongo(rootCtx); err != nil {
 		return err
 	}
