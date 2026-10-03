@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	errs "github.com/gnbaviskar2207/ecom-common/pkg/err"
+	mongoHelpers "github.com/gnbaviskar2207/ecom-common/pkg/mongodb"
 	"github.com/gnbaviskar2207/ecom-common/pkg/utils"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
@@ -22,15 +23,9 @@ type MongoProductRepository struct {
 }
 
 func New(ctx context.Context, url, database, collection string, logger *slog.Logger) (*MongoProductRepository, error) {
-	client, err := mongo.Connect(options.Client().ApplyURI(url))
+	client, err := mongoHelpers.ConnectToMongo(ctx, url, logger)
 	if err != nil {
 		return nil, err
-	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		_ = client.Disconnect(ctx)
-		return nil, fmt.Errorf("mongodb error while ping %w", err)
 	}
 	productCollection := client.Database(database).Collection(collection)
 	repo := &MongoProductRepository{

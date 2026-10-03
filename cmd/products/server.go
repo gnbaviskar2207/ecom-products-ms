@@ -54,10 +54,8 @@ func New(cfg *config.Config, logger *slog.Logger) *Server {
 }
 
 func (s *Server) connectMongo(ctx context.Context) error {
-	connectCtx, connectCancel := context.WithTimeout(ctx, s.cfg.MongoConfig.Timeout)
-	defer connectCancel()
 	s.logger.Info("connecting to mongodb", "url", s.cfg.MongoConfig.URL, "database", s.cfg.MongoConfig.Database, "collection", s.cfg.MongoConfig.Collection)
-	mongoRepo, err := mongodb.New(connectCtx, s.cfg.MongoConfig.URL, s.cfg.MongoConfig.Database, s.cfg.MongoConfig.Collection, s.logger)
+	mongoRepo, err := mongodb.New(ctx, s.cfg.MongoConfig.URL, s.cfg.MongoConfig.Database, s.cfg.MongoConfig.Collection, s.logger)
 	if err != nil {
 		return err
 	}

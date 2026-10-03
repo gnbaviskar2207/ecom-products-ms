@@ -52,7 +52,9 @@ func run() error {
 		}
 	}()
 
-	if err := srv.connectMongo(rootCtx); err != nil {
+	connectCtx, connectCancel := context.WithTimeout(rootCtx, srv.cfg.MongoConfig.Timeout)
+	defer connectCancel()
+	if err := srv.connectMongo(connectCtx); err != nil {
 		return err
 	}
 	metrics := srv.initMetrics()
