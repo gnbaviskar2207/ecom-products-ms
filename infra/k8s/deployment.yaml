@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: ecom-product-service
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ecom-product-service
+
+  template:
+    metadata:
+      labels:
+        app: ecom-product-service
+
+    spec:
+      containers:
+        - name: products
+          image: localhost/ecom-product-service:prod
+
+          imagePullPolicy: Never
+
+          ports:
+            - containerPort: 50051
+              name: grpc
+
+            - containerPort: 9091
+              name: http

@@ -1,4 +1,4 @@
-.PHONY: help tools gen-all buf-gen gov-gen lint test test-race build run start-local buf-login buf-dep
+.PHONY: help tools gen-all gov-gen lint test test-race build run start-local buf-login buf-dep
 
 .DEFAULT_GOAL := help
 
@@ -22,27 +22,18 @@ tools: ## Install development tools (dlv, goverter, gopls)
 	go install golang.org/x/tools/gopls@v0.20.0
 	@printf "$(GREEN)✓ Development tools installed.$(RESET)\n"
 
-gen-all: buf-gen gov-gen ## Run all code generators (buf + goverter)
+gen-all: gov-gen ## Run all code generators (buf + goverter)
 	@printf "$(GREEN)✓ All code generation completed successfully.$(RESET)\n"
-
-buf-gen: remove-stale-buf-gen-files buf-generate ## Clean and generate protobuf/gRPC files
 
 gov-gen: remove-stale-goverter-gen-files goverter-gen ## Clean and generate converter code
 
-buf-generate:
-	@printf "$(CYAN)==> Generating protobuf and gRPC code with buf...$(RESET)\n"
-	PATH="$(GOBIN):$$PATH" buf generate
-	@printf "$(GREEN)✓ Buf generation completed.$(RESET)\n"
 
 goverter-gen:
 	@printf "$(CYAN)==> Generating converters with goverter...$(RESET)\n"
 	PATH="$(GOBIN):$$PATH" goverter gen ./internal/transform
 	@printf "$(GREEN)✓ Goverter generation completed.$(RESET)\n"
 
-remove-stale-buf-gen-files:
-	@printf "$(YELLOW)==> Cleaning stale buf generated files...$(RESET)\n"
-	@find ./gen -mindepth 1 -delete 2>/dev/null || true
-	@printf "$(GREEN)✓ Stale buf files removed.$(RESET)\n"
+
 
 remove-stale-goverter-gen-files:
 	@printf "$(YELLOW)==> Cleaning stale goverter generated files...$(RESET)\n"
@@ -78,7 +69,7 @@ build: ## Build product microservice binary
 
 run: ## Run product microservice locally
 	@printf "$(CYAN)==> Starting product microservice...$(RESET)\n"
-	go run ./cmd/products/main.go --config=./config.yaml
+	go run ./cmd/products --config=./config.yaml
 
 run-binary: ## Run the product service using binary
 	@printf "$(CYAN)==> Starting product microservice...$(RESET)\n"

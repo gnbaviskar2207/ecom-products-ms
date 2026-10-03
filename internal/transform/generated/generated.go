@@ -4,7 +4,7 @@
 package generated
 
 import (
-	products "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
+	products "github.com/gnbaviskar2207/ecom-common/pkg/gen/products"
 	domain "github.com/gnbaviskar2207/ecom-products-ms/internal/domain"
 )
 

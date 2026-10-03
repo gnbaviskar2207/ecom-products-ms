@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	errs "github.com/gnbaviskar2207/ecom-common/pkg/err"
-	productsV1 "github.com/gnbaviskar2207/ecom-products-ms/gen/products"
+	productsV1 "github.com/gnbaviskar2207/ecom-common/pkg/gen/products"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/dto"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/ports"
 	"github.com/gnbaviskar2207/ecom-products-ms/internal/transform"

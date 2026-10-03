@@ -95,6 +95,7 @@ func (m *MongoProductRepository) FindOneByPid(ctx context.Context, pid string) (
 	var result struct {
 		Payload domain.Product `bson:"payload"`
 	}
+	m.logger.InfoContext(ctx, "Received request", slog.String("pid", pid))
 	cursor := m.collection.FindOne(ctx, bson.M{"payload.pid": pid}, options.FindOne().SetProjection(bson.D{{Key: "payload", Value: 1}}))
 	err = cursor.Decode(&result)
 	if err != nil {
