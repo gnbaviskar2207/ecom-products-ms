@@ -11,7 +11,6 @@ type Config struct {
 	commonConfig.MongoConfig  `yaml:"mongo"`
 	commonConfig.GRPCConfig   `yaml:"grpc"`
 	commonConfig.HTTPConfig   `yaml:"http"`
-	// Product ProductConfig `yaml:"product"`
 }
 
 func Load(configPath string, logger *slog.Logger) (*Config, error) {

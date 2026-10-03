@@ -39,3 +39,9 @@ config.yaml
 
 # Postman files
 output.txt
+
+
+# cert files
+certs/
+/certs/
+certs/*

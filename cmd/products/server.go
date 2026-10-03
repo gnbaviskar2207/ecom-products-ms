@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
@@ -96,6 +97,19 @@ func (s *Server) buildGRPCServer(metrics *prom.ServerMetrics) error {
 			// Determines whether the client is allowed to send keepalive PINGs.
 			PermitWithoutStream: s.cfg.GRPCConfig.PermitWithoutStream,
 		}),
+	}
+
+	// TLS configurations
+	if s.cfg.TLSCertFile != "" && s.cfg.GRPCConfig.TLSKeyFile != "" {
+		tlsCreds, err := credentials.NewServerTLSFromFile(
+			s.cfg.GRPCConfig.TLSCertFile,
+			s.cfg.GRPCConfig.TLSKeyFile,
+		)
+		if err != nil {
+			return fmt.Errorf("error while loading tls cert and key from files -%w", err)
+		}
+		serverOptions = append(serverOptions, grpc.Creds(tlsCreds))
+		s.logger.Info("tls is enabled for grpc server")
 	}
 
 	serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(
